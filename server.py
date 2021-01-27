@@ -2,8 +2,6 @@ import sys
 import socket
 import threading
 import pickle
-import schedule
-import time
 from utils import print_msg
 
 
@@ -41,42 +39,47 @@ class Server:
                     self.avg = self.sum / self.n_element
 
                     # Reflect the change in sum and average
-                    print_msg("Current sum " + str(self.sum))
-                    print_msg("Current average " + str(self.avg))
+                    print_msg("Current sum: " + str(self.sum))
+                    print_msg("Current average: " + str(self.avg))
 
                     # Calculate and send back to all clients
                     self.broadcast_to_clients(self.avg)
                 else:
-                    self.remove_client(client_conn)
+                    self.remove_client(client_conn, client_ip)
+                    return
             except (ConnectionError):
-                self.remove_client(client_conn)
+                self.remove_client(client_conn, client_ip)
                 return
             except:
-                print("Error handling client request")
+                print("Error handling client request.")
 
-    def send_to_client(self, data, client_conn):
-        """Send pickled data to client connection."""
+    def send_to_client(self, data, client_conn, client_ip):
+        """Send pickled data to the client."""
         try:
             client_conn.send(pickle.dumps(data))
-        except (OSError, ConnectionRefusedError):
+        except (OSError, ConnectionError):
             client_conn.close()
-            self.remove_client(client_conn)
+            self.remove_client(client_conn, client_ip)
 
     def broadcast_to_clients(self, data):
-        """Send pickled data to all client connections."""
+        """Send pickled data to all clients."""
+        pickled_data = pickle.dumps(data)
         for conn in self.client_conns:
             try:
-                conn.send(pickle.dumps(data))
-            except (OSError, ConnectionRefusedError):
+                conn.send(pickled_data)
+            except (OSError, ConnectionError):
                 conn.close()
                 self.remove_client(conn)
 
-    def remove_client(self, client_conn):
+    def remove_client(self, client_conn, client_ip=None):
         """Remove client connection."""
         try:
             self.client_conns.remove(client_conn)
         except ValueError:
-            pass
+            return
+
+        if client_ip is not None:
+            print_msg("Client " + client_ip + " disconnected.")
 
     def wait_for_clients(self):
         """Wait for clients' request for connection and provide worker thread
@@ -90,7 +93,7 @@ class Server:
             self.client_conns.append(client_conn)
             print_msg(client_ip + " connected")
 
-            self.send_to_client(self.avg, client_conn)
+            self.send_to_client(self.avg, client_conn, client_ip)
 
             # Provide worker thread to serve client
             worker_thread = threading.Thread(
@@ -102,7 +105,7 @@ class Server:
 
     def set_up(self):
         """Set up socket."""
-        print_msg('Starting server')
+        print_msg("Starting server.")
 
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -110,7 +113,7 @@ class Server:
         self.socket.bind(('', self.port))
         self.socket.listen(100)
 
-        print_msg('Server started')
+        print_msg("Server started.")
 
     def run(self):
         """Call this method to run the server."""
@@ -118,14 +121,14 @@ class Server:
 
     def shut_down(self):
         """Properly shut down server."""
-        print_msg('Shutting down server')
+        print_msg("Shutting down server.")
         self.socket.close()
 
 
 def main():
     # This is extended to allow flexible port number option
     supposed_sys_argv = {
-        'server_launcher.py': None,
+        'server.py': None,
         '<port>': 4000
     }
 
