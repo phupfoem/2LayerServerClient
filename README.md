@@ -8,6 +8,6 @@ Currently works for 2-layer client-server interaction.
 * Capability to send large files over socket
 
 ## Demo:
-**python server.py**
-**python internal_server.py**
+**python server.py**\
+**python internal_server.py**\
 **python client.py**
