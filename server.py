@@ -9,10 +9,11 @@ class Server:
     def __init__(self, port):
         self.port = port
         self.socket = None
-        self.client_conns = []
+        self.client_conns = {}
         self.sum = 0.0
         self.n_element = 0
         self.avg = 0.0
+        self.n_client = 0
 
         self.set_up()
 
@@ -34,16 +35,30 @@ class Server:
                     # !!! Critical section
                     # Ok solely due to the module architecture
 
+                    # Add number to db
+                    old_number = self.client_conns[client_ip][1]
+                    old_num_of_clients = self.client_conns[client_ip][2]
+                    self.client_conns[client_ip][1] = number[0]
+                    self.client_conns[client_ip][2] = number[1]
+
+                    self.n_client -= old_num_of_clients
+                    self.n_client += number[1]
+
                     # Add number client sent to sum
-                    self.sum += number
-                    self.n_element += 1
+                    self.sum -= old_number*old_num_of_clients
+                    self.sum += number[0]*number[1]
 
                     # Calculate avg
-                    self.avg = self.sum / self.n_element
+                    print(self.sum)
+                    print(self.n_client)
+                    self.avg = self.sum / self.n_client
 
                     # Reflect the change in sum and average
                     print_msg("Current sum: " + str(self.sum))
                     print_msg("Current average: " + str(self.avg))
+                    print_msg("Current number of edges: " + str(self.n_element))
+                    print_msg("Current total clients: " + str(self.n_client))
+                    print_msg("------------------------------------")
 
                     # Calculate and send back to all clients
                     self.broadcast_to_clients(self.avg)
@@ -67,19 +82,34 @@ class Server:
     def broadcast_to_clients(self, data):
         """Send pickled data to all clients."""
         pickled_data = pickle.dumps(data)
-        for conn in self.client_conns:
+        for ip, lis in self.client_conns.items():
             try:
-                conn.send(pickled_data)
+                lis[0].send(pickled_data)
             except (OSError, ConnectionError):
-                conn.close()
-                self.remove_client(conn)
+                lis[0].close()
+                self.remove_client(lis[0])
 
     def remove_client(self, client_conn, client_ip=None):
         """Remove client connection."""
-        try:
-            self.client_conns.remove(client_conn)
-        except ValueError:
+        length = len(self.client_conns)
+
+        data_in_this_edge = 0
+        number_of_client_in_this_edge = 0
+        temp = {}
+        for key, value in self.client_conns.items():
+            if value[0] != client_conn:
+                temp[key] = value
+            else:
+                data_in_this_edge = value[1]
+                number_of_client_in_this_edge = value[2]
+        self.client_conns = temp
+
+        if length == len(self.client_conns):
             return
+
+        self.sum -= data_in_this_edge
+        self.n_client -= number_of_client_in_this_edge
+        self.n_element -= 1
 
         if client_ip is not None:
             print_msg("Client " + client_ip + " disconnected.")
@@ -93,8 +123,16 @@ class Server:
             client_conn, (client_ip, client_port) = self.socket.accept()
 
             # Reflect the wait is done
-            # client_ip = client_ip + ":" + client_port
-            self.client_conns.append(client_conn)
+            client_ip = client_ip + ":" + str(client_port)
+            if client_ip in self.client_conns:
+                self.client_conns[client_ip][0].close()
+                self.n_element -= 1
+            self.client_conns[client_ip] = []
+            self.client_conns[client_ip].append(client_conn)
+            # init the value of the client
+            self.client_conns[client_ip].append(0)  # number that edge send
+            self.client_conns[client_ip].append(0)  # number of clients connected with edge
+            self.n_element += 1
             print_msg(client_ip + " connected")
 
             self.send_to_client(self.avg, client_conn, client_ip)

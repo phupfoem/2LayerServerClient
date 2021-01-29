@@ -57,7 +57,7 @@ class InternalServer:
                     print_msg("------------------------------------")
 
                     # Calculate and send back to upper server
-                    self.send_to_upper_server(self.avg)
+                    self.send_to_upper_server([self.avg, self.n_element])
                 else:
                     self.remove_client(client_conn, client_ip)
                     return
@@ -88,10 +88,20 @@ class InternalServer:
     def remove_client(self, client_conn, client_ip=None):
         """Remove client connection."""
         length = len(self.client_conns)
-        self.client_conns = {key: value for key, value in self.client_conns.items() if value[0] != client_conn}
+
+        data_in_this_client = 0
+        temp = {}
+        for key, value in self.client_conns.items():
+            if value[0] != client_conn:
+                temp[key] = value
+            else:
+                data_in_this_client = value[1]
+        self.client_conns = temp
+
         if length == len(self.client_conns):
             return
 
+        self.sum -= data_in_this_client
         self.n_element -= 1
 
         if client_ip is not None:
@@ -130,6 +140,34 @@ class InternalServer:
             )
             worker_thread.daemon = True
             worker_thread.start()
+        # while True:
+        #     try:
+        #         # Wait for client
+        #         client_conn, (client_ip, client_port) = self.socket.accept()
+        #
+        #         # Reflect the wait is done
+        #         client_ip = client_ip + ":" + str(client_port)
+        #         if client_ip in self.client_conns:
+        #             self.client_conns[client_ip][0].close()
+        #             self.n_element -= 1
+        #         self.client_conns[client_ip] = []
+        #         self.client_conns[client_ip].append(client_conn)
+        #         # init the value of the client
+        #         self.client_conns[client_ip].append(0)
+        #         self.n_element += 1
+        #         print_msg(client_ip + " connected")
+        #
+        #         self.send_to_client(self.avg, client_conn, client_ip)
+        #
+        #         # Provide worker thread to serve client
+        #         worker_thread = threading.Thread(
+        #             target=self.handle_request,
+        #             args=(client_conn, client_ip)
+        #         )
+        #         worker_thread.daemon = True
+        #         worker_thread.start()
+        #     except:
+        #         self.shut_down()
 
     def wait_for_upper_server(self):
         """Wait receive new avg."""
@@ -144,6 +182,26 @@ class InternalServer:
 
             # Send number to all clients
             self.broadcast_to_clients(data_rcv)
+        # while True:
+        #     try:
+        #         # Receive input parameter from server
+        #         data_rcv = pickle.loads(self.upper_server.recv(1024))
+        #         print_msg("Received from upper server: " + str(data_rcv))
+        #
+        #         # Make upper server's average as its own
+        #         # self.sum = self.avg = data_rcv
+        #         # self.n_element = 1
+        #
+        #         # Send number to all clients
+        #         self.broadcast_to_clients(data_rcv)
+        #     except:
+        #         # print(f"closing connection to {address}.")
+        #         # clientsocket.shutdown(socket.SHUT_RDWR)
+        #         # clientsocket.close()
+        #         # sys.exit()
+        #
+        #         self.shut_down()
+
 
     def set_up(self):
         """Set up socket and connection to server."""

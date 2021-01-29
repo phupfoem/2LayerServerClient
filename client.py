@@ -34,7 +34,9 @@ class Client:
 
             # Generate new number
             # nntrain.main()
-            num = self.num_gen(data_rcv)
+            #num = self.num_gen(data_rcv)
+            num = 5
+            time.sleep(5)
             print_msg("Sent data: " + str(num))
 
             # Send number back to server
