@@ -4,6 +4,7 @@ import pickle
 import random
 import time
 from utils import print_msg
+#from data.train as nntrain
 
 
 class Client:
@@ -21,6 +22,9 @@ class Client:
 
         self.set_up()
 
+    def __del__(self):
+        self.shut_down()
+
     def communicate_with_server(self):
         """Generate & send a number to server & receive new input parameter."""
         while True:
@@ -29,6 +33,7 @@ class Client:
             print_msg("Received from server: " + str(data_rcv))
 
             # Generate new number
+            # nntrain.main()
             num = self.num_gen(data_rcv)
             print_msg("Sent data: " + str(num))
 
@@ -49,6 +54,15 @@ class Client:
         """Call this method to run the client app."""
         self.communicate_with_server()
 
+    def shut_down(self):
+        """Properly shut down server."""
+        print_msg("Shutting down socket in client")
+
+        data_to_send = pickle.dumps("close")
+        self.server.send(data_to_send)
+
+        self.server.shutdown(socket.SHUT_RDWR)
+        self.server.close()
 
 def main():
     # This is extended to allow default server socket

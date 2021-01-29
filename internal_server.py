@@ -13,7 +13,7 @@ class InternalServer:
 
         self.port = port
         self.socket = None
-        self.client_conns = []
+        self.client_conns = {}
         self.sum = 0.0
         self.n_element = 0
         self.avg = 0.0
@@ -31,13 +31,21 @@ class InternalServer:
                 print_msg("Received from " + client_ip + " " + str(data_rcv))
 
                 number = data_rcv
+                if number == "close":
+                    self.remove_client(client_conn, client_ip)
+                    return
+
                 if number:
                     # !!! Critical section
                     # Ok solely due to the module architecture
 
+                    # Add number to db
+                    old_number = self.client_conns[client_ip][1]
+                    self.client_conns[client_ip][1] = number
+
                     # Add number client sent to sum
+                    self.sum -= old_number
                     self.sum += number
-                    self.n_element += 1
 
                     # Calculate avg
                     self.avg = self.sum / self.n_element
@@ -45,6 +53,8 @@ class InternalServer:
                     # Reflect the change in sum and average
                     print_msg("Current sum: " + str(self.sum))
                     print_msg("Current average: " + str(self.avg))
+                    print_msg("Current number of clients: " + str(self.n_element))
+                    print_msg("------------------------------------")
 
                     # Calculate and send back to upper server
                     self.send_to_upper_server(self.avg)
@@ -68,19 +78,21 @@ class InternalServer:
     def broadcast_to_clients(self, data):
         """Send pickled data to all clients."""
         pickled_data = pickle.dumps(data)
-        for conn in self.client_conns:
+        for ip, lis in self.client_conns.items():
             try:
-                conn.send(pickled_data)
+                lis[0].send(pickled_data)
             except (OSError, ConnectionError):
-                conn.close()
-                self.remove_client(conn)
+                lis[0].close()
+                self.remove_client(lis[0])
 
     def remove_client(self, client_conn, client_ip=None):
         """Remove client connection."""
-        try:
-            self.client_conns.remove(client_conn)
-        except ValueError:
+        length = len(self.client_conns)
+        self.client_conns = {key: value for key, value in self.client_conns.items() if value[0] != client_conn}
+        if length == len(self.client_conns):
             return
+
+        self.n_element -= 1
 
         if client_ip is not None:
             print_msg("Client " + client_ip + " disconnected.")
@@ -95,10 +107,18 @@ class InternalServer:
         """
         while True:
             # Wait for client
-            client_conn, (client_ip, _) = self.socket.accept()
+            client_conn, (client_ip, client_port) = self.socket.accept()
 
             # Reflect the wait is done
-            self.client_conns.append(client_conn)
+            client_ip = client_ip + ":" + str(client_port)
+            if client_ip in self.client_conns:
+                self.client_conns[client_ip][0].close()
+                self.n_element -= 1
+            self.client_conns[client_ip] = []
+            self.client_conns[client_ip].append(client_conn)
+            # init the value of the client
+            self.client_conns[client_ip].append(0)
+            self.n_element += 1
             print_msg(client_ip + " connected")
 
             self.send_to_client(self.avg, client_conn, client_ip)
@@ -119,8 +139,8 @@ class InternalServer:
             print_msg("Received from upper server: " + str(data_rcv))
 
             # Make upper server's average as its own
-            self.sum = self.avg = data_rcv
-            self.n_element = 1
+            # self.sum = self.avg = data_rcv
+            # self.n_element = 1
 
             # Send number to all clients
             self.broadcast_to_clients(data_rcv)
@@ -166,6 +186,11 @@ class InternalServer:
     def shut_down(self):
         """Properly shut down server."""
         print_msg("Shutting down server.")
+
+        data_to_send = pickle.dumps("close")
+        self.socket.send(data_to_send)
+
+        self.socket.shutdown(socket.SHUT_RDWR)
         self.socket.close()
 
 

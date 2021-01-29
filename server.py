@@ -27,6 +27,9 @@ class Server:
                 print_msg("Received from " + client_ip + " " + str(data_rcv))
 
                 number = data_rcv
+                if number == "close":
+                    self.remove_client(client_conn, client_ip)
+                    return
                 if number:
                     # !!! Critical section
                     # Ok solely due to the module architecture
@@ -87,9 +90,10 @@ class Server:
         """
         while True:
             # Wait for client
-            client_conn, (client_ip, _) = self.socket.accept()
+            client_conn, (client_ip, client_port) = self.socket.accept()
 
             # Reflect the wait is done
+            # client_ip = client_ip + ":" + client_port
             self.client_conns.append(client_conn)
             print_msg(client_ip + " connected")
 
