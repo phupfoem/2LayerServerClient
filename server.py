@@ -15,6 +15,8 @@ class Server:
         self.avg = 0.0
         self.n_client = 0
 
+        self._key_lock = threading.Lock()
+
         self.set_up()
 
     def __del__(self):
@@ -34,34 +36,35 @@ class Server:
                 if number:
                     # !!! Critical section
                     # Ok solely due to the module architecture
+                    with self._key_lock:
 
-                    # Add number to db
-                    old_number = self.client_conns[client_ip][1]
-                    old_num_of_clients = self.client_conns[client_ip][2]
-                    self.client_conns[client_ip][1] = number[0]
-                    self.client_conns[client_ip][2] = number[1]
+                        # Add number to db
+                        old_number = self.client_conns[client_ip][1]
+                        old_num_of_clients = self.client_conns[client_ip][2]
+                        self.client_conns[client_ip][1] = number[0]
+                        self.client_conns[client_ip][2] = number[1]
 
-                    self.n_client -= old_num_of_clients
-                    self.n_client += number[1]
+                        self.n_client -= old_num_of_clients
+                        self.n_client += number[1]
 
-                    # Add number client sent to sum
-                    self.sum -= old_number*old_num_of_clients
-                    self.sum += number[0]*number[1]
+                        # Add number client sent to sum
+                        self.sum -= old_number*old_num_of_clients
+                        self.sum += number[0]*number[1]
 
-                    # Calculate avg
-                    print(self.sum)
-                    print(self.n_client)
-                    self.avg = self.sum / self.n_client
+                        # Calculate avg
+                        print(self.sum)
+                        print(self.n_client)
+                        self.avg = self.sum / self.n_client
 
-                    # Reflect the change in sum and average
-                    print_msg("Current sum: " + str(self.sum))
-                    print_msg("Current average: " + str(self.avg))
-                    print_msg("Current number of edges: " + str(self.n_element))
-                    print_msg("Current total clients: " + str(self.n_client))
-                    print_msg("------------------------------------")
+                        # Reflect the change in sum and average
+                        print_msg("Current sum: " + str(self.sum))
+                        print_msg("Current average: " + str(self.avg))
+                        print_msg("Current number of edges: " + str(self.n_element))
+                        print_msg("Current total clients: " + str(self.n_client))
+                        print_msg("------------------------------------")
 
-                    # Calculate and send back to all clients
-                    self.broadcast_to_clients(self.avg)
+                        # Calculate and send back to all clients
+                        self.broadcast_to_clients(self.avg)
                 else:
                     self.remove_client(client_conn, client_ip)
                     return
@@ -107,9 +110,11 @@ class Server:
         if length == len(self.client_conns):
             return
 
-        self.sum -= data_in_this_edge
-        self.n_client -= number_of_client_in_this_edge
-        self.n_element -= 1
+        # critical section
+        with self._key_lock:
+            self.sum -= data_in_this_edge
+            self.n_client -= number_of_client_in_this_edge
+            self.n_element -= 1
 
         if client_ip is not None:
             print_msg("Client " + client_ip + " disconnected.")

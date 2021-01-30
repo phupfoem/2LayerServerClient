@@ -18,6 +18,8 @@ class InternalServer:
         self.n_element = 0
         self.avg = 0.0
 
+        self._key_lock = threading.Lock()
+
         self.set_up()
 
     def __del__(self):
@@ -38,26 +40,27 @@ class InternalServer:
                 if number:
                     # !!! Critical section
                     # Ok solely due to the module architecture
+                    with self._key_lock:
 
-                    # Add number to db
-                    old_number = self.client_conns[client_ip][1]
-                    self.client_conns[client_ip][1] = number
+                        # Add number to db
+                        old_number = self.client_conns[client_ip][1]
+                        self.client_conns[client_ip][1] = number
 
-                    # Add number client sent to sum
-                    self.sum -= old_number
-                    self.sum += number
+                        # Add number client sent to sum
+                        self.sum -= old_number
+                        self.sum += number
 
-                    # Calculate avg
-                    self.avg = self.sum / self.n_element
+                        # Calculate avg
+                        self.avg = self.sum / self.n_element
 
-                    # Reflect the change in sum and average
-                    print_msg("Current sum: " + str(self.sum))
-                    print_msg("Current average: " + str(self.avg))
-                    print_msg("Current number of clients: " + str(self.n_element))
-                    print_msg("------------------------------------")
+                        # Reflect the change in sum and average
+                        print_msg("Current sum: " + str(self.sum))
+                        print_msg("Current average: " + str(self.avg))
+                        print_msg("Current number of clients: " + str(self.n_element))
+                        print_msg("------------------------------------")
 
-                    # Calculate and send back to upper server
-                    self.send_to_upper_server([self.avg, self.n_element])
+                        # Calculate and send back to upper server
+                        self.send_to_upper_server([self.avg, self.n_element])
                 else:
                     self.remove_client(client_conn, client_ip)
                     return
@@ -101,8 +104,10 @@ class InternalServer:
         if length == len(self.client_conns):
             return
 
-        self.sum -= data_in_this_client
-        self.n_element -= 1
+        # critical section
+        with self._key_lock:
+            self.sum -= data_in_this_client
+            self.n_element -= 1
 
         if client_ip is not None:
             print_msg("Client " + client_ip + " disconnected.")
