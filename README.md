@@ -26,3 +26,5 @@ Currently works for 2-layer client-server interaction.
 
 **Solve critical section problem**\
 * solved issue: when deletes an client, the sum value of the server cannot change immediately
+
+[https://stackoverflow.com/questions/52133031/receiving-async-error-when-trying-to-import-the-firebase-package](solve async problem)

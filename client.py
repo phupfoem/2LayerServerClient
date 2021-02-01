@@ -4,7 +4,7 @@ import pickle
 import random
 import time
 from utils import print_msg
-#from data.train as nntrain
+import DDP.model.train as nntrain
 
 
 class Client:
@@ -27,21 +27,7 @@ class Client:
 
     def communicate_with_server(self):
         """Generate & send a number to server & receive new input parameter."""
-        while True:
-            # Receive input parameter from server
-            data_rcv = pickle.loads(self.server.recv(1024))
-            print_msg("Received from server: " + str(data_rcv))
-
-            # Generate new number
-            # nntrain.main()
-            #num = self.num_gen(data_rcv)
-            num = 5
-            time.sleep(5)
-            print_msg("Sent data: " + str(num))
-
-            # Send number back to server
-            data_to_send = pickle.dumps(num)
-            self.server.send(data_to_send)
+        nntrain.Train(self.server)
 
     def set_up(self):
         """Set up connection with server"""

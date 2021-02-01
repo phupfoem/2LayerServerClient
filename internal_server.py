@@ -37,7 +37,7 @@ class InternalServer:
                     self.remove_client(client_conn, client_ip)
                     return
 
-                if number:
+                if number is not None:
                     # !!! Critical section
                     # Ok solely due to the module architecture
                     with self._key_lock:
