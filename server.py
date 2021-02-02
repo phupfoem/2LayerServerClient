@@ -65,6 +65,7 @@ class Server:
                         self.clients_responded.add(client_addr)
                         self.sum += weight * value.data.clone()
                         self.total_weight += weight
+                        print(weight)
 
                         # Reflect the change
                         print_msg("Current sum: " + str(self.sum))
@@ -159,7 +160,7 @@ class Server:
     def broadcast_on_schedule(self):
         """Broadcast on schedule."""
         start_time = time.time()
-        delay_time = 5.0
+        delay_time = 10.0
         max_delay = 30.0
         min_delay = 5.0
         while True:
@@ -171,11 +172,16 @@ class Server:
             ):
                 with self._key_lock:
                     if self.total_weight == 0:
-                        delay_time = min([delay_time + 1.0, max_delay])
+                        delay_time = min([delay_time * 2.0, max_delay])
+                        start_time = time.time()
                         continue
 
                     if len(self.clients_responded) == len(self.client_conns):
                         delay_time = max([delay_time / 2.0, min_delay])
+                    else:
+                        delay_time = min([delay_time * 1.1, max_delay])
+
+                    start_time = time.time()
 
                     self.clients_responded = set()
                     self.model.fc.weight.data = self.sum / self.total_weight
@@ -188,7 +194,7 @@ class Server:
                     'seqnum': self.seqnum
                 })
 
-            time.sleep(delay_time / 10)
+            time.sleep(0.1)
 
     def set_up(self):
         """Set up socket."""
