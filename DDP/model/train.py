@@ -53,7 +53,7 @@ def train(cpu, args):
     rank = args.nr * args.cpus + cpu
     dist.init_process_group(
         backend="gloo",
-        init_method="file:///D:/BKEL/201/ComputerNetworking/Extra/BackEnd/"
+        init_method="file://C:/Users/Viet Nguyen/Desktop/Viet-BKU-Local/2LayerServerClient/DDP/model/setup.txt"
         "setup.txt",
         world_size=args.world_size,
         rank=rank
@@ -107,8 +107,8 @@ def train(cpu, args):
             optimizer.step()
             # For logging:
             if (i + 1) % batch_size and cpu == 0:
-                # print('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'.format
-                #      (epoch + 1, args.epochs, i + 1, total_step, loss.item()))
+                print('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'.format
+                     (epoch + 1, args.epochs, i + 1, total_step, loss.item()))
                 #lossValue = loss.item()
                 #lossVal.append(lossValue)
                 #result = firebase.post('/lossdata', lossValue)

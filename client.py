@@ -43,6 +43,10 @@ class Client:
 
         self.set_up()
 
+        #statistic
+        self.startSendTime = 0
+        self.latency = 0
+
     def __del__(self):
         self.shut_down()
 
@@ -54,12 +58,14 @@ class Client:
             while True:
                 try:
                     data_rcv += self.server.recv(4096)
+                    self.latency = time.time() - self.startSendTime
                     data_rcv = pickle.loads(data_rcv)
                     break
                 except pickle.UnpicklingError:
                     pass
-
+            
             print_msg("Received from server: " + str(data_rcv))
+            print_msg("Reply from "+ self.server_ip + " : time="+  str(self.latency))
             print_msg("------------------------------------")
 
             with self._key_lock:
@@ -69,6 +75,7 @@ class Client:
     def send_to_server(self, data):
         """Send pickled data to server."""
         print_msg("Sent data: " + str(data))
+        self.startSendTime = time.time()
         self.server.sendall(pickle.dumps(data))
         print_msg("------------------------------------")
 

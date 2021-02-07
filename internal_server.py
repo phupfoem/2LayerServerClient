@@ -29,6 +29,10 @@ class InternalServer:
 
         self.set_up()
 
+        #statistic
+        self.startSendTime = 0
+        self.latency = 0
+
     def __del__(self):
         self.shut_down()
 
@@ -123,6 +127,7 @@ class InternalServer:
     def send_to_upper_server(self, data):
         """Send pickled data to upper server."""
         print_msg("Sent data: " + str(data))
+        self.startSendTime = time.time()
         self.upper_server.sendall(pickle.dumps(data))
         print_msg("------------------------------------")
 
@@ -210,12 +215,14 @@ class InternalServer:
             while True:
                 try:
                     data_rcv += self.upper_server.recv(4096)
+                    self.latency = time.time() - self.startSendTime
                     data_rcv = pickle.loads(data_rcv)
                     break
                 except pickle.UnpicklingError:
                     pass
 
             print_msg("Received from upper server: " + str(data_rcv))
+            print_msg("Reply from "+ str(self.upper_server) + " : time="+  str(self.latency))
             print_msg("------------------------------------")
 
             with self._key_lock:
