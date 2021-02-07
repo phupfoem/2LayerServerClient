@@ -91,22 +91,7 @@ class Server:
                                   + str(self.total_weight))
                         print_msg("------------------------------------")
 
-                    train_loss = 0.0
-                    for i, (data, target) in enumerate(self.dl):
-                        if i > 100:
-                            break
 
-                        output = self.model(data)
-                        loss = self.criterion(output, target)
-                        self.optimizer.zero_grad()
-                        loss.backward()
-                        self.optimizer.step()
-
-                        #train_loss += loss.item() / len(self.dl)
-                        train_loss += loss.item() / 100
-
-                    print_msg("Current loss value: " + str(train_loss))
-                    print_msg("------------------------------------")
 
                 else:
                     self.remove_client(client_addr)
@@ -227,6 +212,23 @@ class Server:
                     'avg': self.model.fc.weight.data.clone(),
                     'seqnum': self.seqnum
                 })
+
+                train_loss = 0.0
+                for i, (data, target) in enumerate(self.dl):
+                    if i > 100:
+                        break
+
+                    output = self.model(data)
+                    loss = self.criterion(output, target)
+                    self.optimizer.zero_grad()
+                    loss.backward()
+                    self.optimizer.step()
+
+                    # train_loss += loss.item() / len(self.dl)
+                    train_loss += loss.item() / 100
+
+                print_msg("Current loss value: " + str(train_loss))
+                print_msg("------------------------------------")
 
             time.sleep(0.1)
 
