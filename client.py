@@ -9,6 +9,12 @@ import torchvision
 from utils import print_msg
 from DDP.model.model import NeuralNet
 
+import requests
+from firebase import firebase
+firebase = firebase.FirebaseApplication(
+    "https://cnextra-f152b-default-rtdb.firebaseio.com/", None)
+# # ---------------------------------------------
+url = "http://localhost:9000/log/create"
 
 class Client:
     def __init__(
@@ -65,6 +71,8 @@ class Client:
             
             # print_msg("Received from server: " + str(data_rcv))
             print_msg("Reply from ip:"+ str(self.server_ip) + " port: "+ str(self.server_port) +" : time="+  str(int(self.latency*1000)) +" ms")
+
+            print_msg("Received from server: " + str(data_rcv))
             print_msg("------------------------------------")
 
             with self._key_lock:
@@ -105,6 +113,11 @@ class Client:
                     self.optimizer.step()
 
                     train_loss += loss.item() / len(self.dl)
+                    #train_loss += loss.item() / len(self.dl)
+                    train_loss += loss.item() / 100
+
+                myobj = {'data': loss.item()}
+                x = requests.post(url, data=myobj)
 
             print_msg("Current loss value: " + str(train_loss))
             print_msg("------------------------------------")

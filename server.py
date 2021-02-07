@@ -7,6 +7,10 @@ import torch
 import time
 from random import seed
 from random import randint
+
+import torch
+import torchvision
+
 from utils import print_msg
 from DDP.model.model import NeuralNet
 
@@ -24,6 +28,19 @@ class Server:
         self.sum = torch.zeros(self.model.fc.weight.shape)
         self.total_weight = 0
         self.seqnum = randint(0, 0xFFFF)
+
+        # attribute for train method only
+        self.optimizer = torch.optim.SGD(self.model.parameters(), 0.0001)
+        self.criterion = torch.nn.CrossEntropyLoss()
+        self.ds = torchvision.datasets.MNIST(
+            root='./data',
+            transform=torchvision.transforms.ToTensor()
+        )
+        self.dl = torch.utils.data.DataLoader(
+            dataset=self.ds,
+            batch_size=100,
+            shuffle=False
+        )
 
         self._key_lock = threading.Lock()
 
@@ -80,6 +97,10 @@ class Server:
                                   + str(self.total_weight))
                         print_msg("Current time: " + str(int(self.latency*1000)) + " ms")
                         print_msg("------------------------------------")
+                        print_msg("------------------------------------")
+
+
+
                 else:
                     self.remove_client(client_addr)
                     return
@@ -195,10 +216,28 @@ class Server:
                     self.total_weight = 0
                     self.seqnum = randint(0, 0xFFFFFF)
                 self.startSendTime = time.time()
+
                 self.broadcast_to_clients({
                     'avg': self.model.fc.weight.data.clone(),
                     'seqnum': self.seqnum
                 })
+
+                train_loss = 0.0
+                for i, (data, target) in enumerate(self.dl):
+                    if i > 100:
+                        break
+
+                    output = self.model(data)
+                    loss = self.criterion(output, target)
+                    self.optimizer.zero_grad()
+                    loss.backward()
+                    self.optimizer.step()
+
+                    # train_loss += loss.item() / len(self.dl)
+                    train_loss += loss.item() / 100
+
+                print_msg("Current loss value: " + str(train_loss))
+                print_msg("------------------------------------")
 
             time.sleep(0.1)
 
