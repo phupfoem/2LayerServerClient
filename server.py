@@ -1,3 +1,4 @@
+from pickle import STRING
 import sys
 import socket
 import threading
@@ -6,7 +7,7 @@ import torch
 import time
 from random import seed
 from random import randint
-
+import argparse
 from utils import print_msg
 from DDP.model.model import NeuralNet
 
@@ -227,27 +228,29 @@ class Server:
 
 def main():
     # This is extended to allow flexible port number option
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--port', default=30000, type=int, required= False, action='store')
+    args = parser.parse_args()
     supposed_sys_argv = {
         'server.py': None,
-        '<port>': 4000
+        'port': args.port
     }
 
-    try:
-        # Parsing command line arguments
-        _, port = sys.argv
-        port = int(port)
-    except ValueError:
-        if len(sys.argv) > len(supposed_sys_argv):
-            # Falling back to default values not possible
-            # Print out usage syntax
-            help_text = "[Usage: " + " ".join(supposed_sys_argv) + "\n"
-            print(help_text)
-            return
+    # try:
+    #     # Parsing command line arguments
+    #     _, port = sys.argv
+    #     port = int(port)
+    # except ValueError:
+    #     if len(sys.argv) > len(supposed_sys_argv):
+    #         # Falling back to default values not possible
+    #         # Print out usage syntax
+    #         help_text = "[Usage: " + " ".join(supposed_sys_argv) + "\n"
+    #         print(help_text)
+    #         return
 
         # Defaulting
-        port = supposed_sys_argv['<port>']
-
-    server = Server(port)
+        # port = supposed_sys_argv['<port>']
+    server = Server(supposed_sys_argv.get('port'))
     server.run()
 
 

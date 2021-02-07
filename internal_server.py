@@ -4,7 +4,7 @@ import threading
 import pickle
 import torch
 import time
-
+import argparse
 from utils import print_msg
 from DDP.model.model import NeuralNet
 
@@ -30,7 +30,7 @@ class InternalServer:
         self.set_up()
 
         #statistic
-        self.startSendTime = 0
+        self.startSendTime = time.time()
         self.latency = 0
 
     def __del__(self):
@@ -222,7 +222,7 @@ class InternalServer:
                     pass
 
             print_msg("Received from upper server: " + str(data_rcv))
-            print_msg("Reply from "+ str(self.upper_server) + " : time="+  str(self.latency))
+            print_msg("Reply from ip:"+ str(self.upper_server_ip) + " port: "+ str(self.upper_server_port) +" : time="+  str(int(self.latency*1000)) +" ms")
             print_msg("------------------------------------")
 
             with self._key_lock:
@@ -292,32 +292,36 @@ class InternalServer:
 
 def main():
     # This is extended to allow flexible port number option
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--server_port', default=30000, type=int, metavar='N')
+    parser.add_argument('--port', default=40000, type=int, metavar='N')
+    args = parser.parse_args()
     supposed_sys_argv = {
         'internal_server.py': None,
-        '<upper_server_ip>': 'localhost',
-        '<upper_server_port>': 4000,
-        '<port>': 4001
+        'upper_server_ip': 'localhost',
+        'upper_server_port': args.server_port,
+        'port': args.port
     }
 
-    try:
-        # Parsing command line arguments
-        _, upper_server_ip, upper_server_port, port = sys.argv
-        upper_server_port = int(upper_server_port)
-        port = int(port)
-    except ValueError:
-        if len(sys.argv) > len(supposed_sys_argv):
-            # Falling back to default values not possible
-            # Print out usage syntax
-            help_text = "[Usage: " + " ".join(supposed_sys_argv) + "\n"
-            print(help_text)
-            return
+    # try:
+    #     # Parsing command line arguments
+    #     _, upper_server_ip, upper_server_port, port = sys.argv
+    #     upper_server_port = int(upper_server_port)
+    #     port = int(port)
+    # except ValueError:
+    #     if len(sys.argv) > len(supposed_sys_argv):
+    #         # Falling back to default values not possible
+    #         # Print out usage syntax
+    #         help_text = "[Usage: " + " ".join(supposed_sys_argv) + "\n"
+    #         print(help_text)
+    #         return
 
-        # Defaulting
-        upper_server_ip = supposed_sys_argv['<upper_server_ip>']
-        upper_server_port = supposed_sys_argv['<upper_server_port>']
-        port = supposed_sys_argv['<port>']
+    #     # Defaulting
+    #     upper_server_ip = supposed_sys_argv['<upper_server_ip>']
+    #     upper_server_port = supposed_sys_argv['<upper_server_port>']
+    #     port = supposed_sys_argv['<port>']
 
-    server = InternalServer(upper_server_ip, upper_server_port, port)
+    server = InternalServer(supposed_sys_argv.get('upper_server_ip'),supposed_sys_argv.get('upper_server_port'), supposed_sys_argv.get('port'))
     server.run()
 
 
