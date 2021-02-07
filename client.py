@@ -68,7 +68,7 @@ class Client:
                     break
                 except pickle.UnpicklingError:
                     pass
-                
+
             print_msg("Received from server: " + str(data_rcv))
             print_msg("Reply from ip:"+ str(self.server_ip) + " port: "+ str(self.server_port) +" : time="+  str(int(self.latency*1000)) +" ms")
             print_msg("------------------------------------")
@@ -98,9 +98,11 @@ class Client:
                 self.model.train()
 
             train_loss = 0.0
-
+            timeStartTrain = time.time()
+            timeTrain = 0
             for i, (data, target) in enumerate(self.dl):
                 if i > 100:
+                    timeTrain = time.time() - timeStartTrain
                     break
 
                 with self._key_lock:
@@ -118,8 +120,9 @@ class Client:
                 # x = requests.post(url, data=myobj)
 
             print_msg("Current loss value: " + str(train_loss))
+            print_msg("Training time: " + '{:.2f}'.format(timeTrain) + ' s')
             print_msg("------------------------------------")
-
+    
             # Send avg to server
             self.send_to_server({
                 'value': self.model.fc.weight.data.clone(),
