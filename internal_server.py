@@ -2,7 +2,11 @@ import sys
 import socket
 import threading
 import pickle
+import torch
+import time
+
 from utils import print_msg
+from DDP.model.model import NeuralNet
 
 
 class InternalServer:
@@ -13,81 +17,163 @@ class InternalServer:
 
         self.port = port
         self.socket = None
-        self.client_conns = []
-        self.sum = 0.0
-        self.n_element = 0
-        self.avg = 0.0
+        self.client_conns = {}
+        self.clients_responded = set()
+
+        self.model = NeuralNet()
+        self.sum = torch.zeros(self.model.fc.weight.shape)
+        self.total_weight = 0
+        self.seqnum = -1
+
+        self._key_lock = threading.Lock()
 
         self.set_up()
+
+        #statistic
+        self.startSendTime_upper = time.time()
+        self.latency_upper = 0
+        self.startSendTime_lower = time.time()
+        self.latency_lower = 0
 
     def __del__(self):
         self.shut_down()
 
-    def handle_request(self, client_conn, client_ip):
+    def handle_request(self, client_conn, client_addr):
         """Handle request from clients."""
         while True:
             try:
-                data_rcv = pickle.loads(client_conn.recv(1024))
-                print_msg("Received from " + client_ip + " " + str(data_rcv))
+                data_rcv = b''
+                while True:
+                    try:
+                        data_rcv += client_conn.recv(4096)
+                        data_rcv = pickle.loads(data_rcv)
+                        self.latency_lower = time.time() - self.startSendTime_lower
+                        break
+                    except pickle.UnpicklingError:
+                        pass
 
-                number = data_rcv
-                if number:
-                    # !!! Critical section
-                    # Ok solely due to the module architecture
+                print_msg("Received from " + client_addr + " " + str(data_rcv))
 
-                    # Add number client sent to sum
-                    self.sum += number
-                    self.n_element += 1
-
-                    # Calculate avg
-                    self.avg = self.sum / self.n_element
-
-                    # Reflect the change in sum and average
-                    print_msg("Current sum: " + str(self.sum))
-                    print_msg("Current average: " + str(self.avg))
-
-                    # Calculate and send back to upper server
-                    self.send_to_upper_server(self.avg)
-                else:
-                    self.remove_client(client_conn, client_ip)
+                if data_rcv == 'close':
+                    self.remove_client(client_addr)
                     return
-            except (ConnectionError):
-                self.remove_client(client_conn, client_ip)
-                return
-            except:
-                print("Error handling client request.")
 
-    def send_to_client(self, data, client_conn, client_ip):
+                if data_rcv is not None:
+                    with self._key_lock:
+                        seqnum = data_rcv['seqnum']
+                        value = data_rcv['value']
+                        weight = data_rcv['weight']
+
+                        if seqnum != self.seqnum:
+                            # Outdated, drop
+                            continue
+
+                        # Update attributes
+                        self.clients_responded.add(client_addr)
+                        self.sum += weight * value.data.clone()
+                        self.total_weight += weight
+
+                        # Reflect the change
+                        print_msg("Current sum: " + str(self.sum))
+                        print_msg("Current number of edges responded: "
+                                  + str(len(self.clients_responded)))
+                        print_msg("Current total weight: "
+                                  + str(self.total_weight))
+                        print_msg("Current time: " + str(int(self.latency_lower*1000)) + " ms")
+                        print_msg("------------------------------------")
+                else:
+                    self.remove_client(client_addr)
+                    return
+            except ConnectionError:
+                self.remove_client(client_addr)
+                return
+
+    def send_to_client(self, data, client_conn, client_addr):
         """Send pickled data to the client."""
         try:
-            client_conn.send(pickle.dumps(data))
+            client_conn.sendall(pickle.dumps(data))
         except (OSError, ConnectionError):
             client_conn.close()
-            self.remove_client(client_conn, client_ip)
+            self.remove_client(client_addr)
 
     def broadcast_to_clients(self, data):
         """Send pickled data to all clients."""
+        client_to_remove_addrs = []
         pickled_data = pickle.dumps(data)
-        for conn in self.client_conns:
-            try:
-                conn.send(pickled_data)
-            except (OSError, ConnectionError):
-                conn.close()
-                self.remove_client(conn)
+        with self._key_lock:
+            for addr, conn in self.client_conns.items():
+                try:
+                    conn.sendall(pickled_data)
+                except (OSError, ConnectionError):
+                    conn.close()
+                    client_to_remove_addrs.append(addr)
 
-    def remove_client(self, client_conn, client_ip=None):
+        for addr in client_to_remove_addrs:
+            self.remove_client(addr)
+
+    def remove_client(self, client_addr):
         """Remove client connection."""
-        try:
-            self.client_conns.remove(client_conn)
-        except ValueError:
-            return
+        with self._key_lock:
+            try:
+                # Update attributes
+                try:
+                    self.clients_responded.remove(client_addr)
+                except KeyError:
+                    pass
 
-        if client_ip is not None:
-            print_msg("Client " + client_ip + " disconnected.")
+                self.client_conns.pop(client_addr)
+
+                print_msg("Client " + client_addr + " disconnected.")
+                print_msg("------------------------------------")
+            except KeyError:
+                pass
 
     def send_to_upper_server(self, data):
         """Send pickled data to upper server."""
-        self.upper_server.send(pickle.dumps(data))
+        print_msg("Sent data: " + str(data))
+        self.startSendTime_upper = time.time()
+        self.upper_server.sendall(pickle.dumps(data))
+        print_msg("------------------------------------")
+
+    def send_to_upper_server_on_schedule(self):
+        """Send to upper server on schedule."""
+        start_time = time.time()
+        delay_time = 10.0
+        max_delay = 30.0
+        min_delay = 5.0
+        while True:
+            if len(self.client_conns) == 0:
+                start_time = time.time()
+            elif (
+                time.time() - start_time > delay_time
+                or len(self.clients_responded) == len(self.client_conns)
+            ):
+                with self._key_lock:
+                    if self.total_weight == 0:
+                        delay_time = min([delay_time * 2.0, max_delay])
+                        start_time = time.time()
+                        continue
+
+                    if len(self.clients_responded) == len(self.client_conns):
+                        delay_time = max([delay_time / 2.0, min_delay])
+                    else:
+                        delay_time = min([delay_time * 1.1, max_delay])
+
+                    start_time = time.time()
+
+                    self.clients_responded = set()
+                    self.model.fc.weight.data = self.sum / self.total_weight
+                    self.sum = torch.zeros(self.model.fc.weight.shape)
+                    old_weight = self.total_weight
+                    self.total_weight = 0
+
+                self.send_to_upper_server({
+                    'value': self.model.fc.weight.data.clone(),
+                    'weight': old_weight,
+                    'seqnum': self.seqnum
+                })
+
+            time.sleep(0.1)
 
     def wait_for_clients(self):
         """Wait for clients' request for connection and provide worker thread
@@ -95,18 +181,32 @@ class InternalServer:
         """
         while True:
             # Wait for client
-            client_conn, (client_ip, _) = self.socket.accept()
+            client_conn, (client_ip, client_port) = self.socket.accept()
 
-            # Reflect the wait is done
-            self.client_conns.append(client_conn)
-            print_msg(client_ip + " connected")
+            # The wait is done
+            with self._key_lock:
+                client_addr = client_ip + ":" + str(client_port)
+                if client_addr in self.client_conns:
+                    self.client_conns[client_addr].close()
 
-            self.send_to_client(self.avg, client_conn, client_ip)
+                self.client_conns[client_addr] = client_conn
+
+                print_msg(client_addr + " connected")
+                print_msg("------------------------------------")
+
+            self.send_to_client(
+                {
+                    'avg': self.model.fc.weight.data.clone(),
+                    'seqnum': self.seqnum
+                },
+                client_conn,
+                client_addr
+            )
 
             # Provide worker thread to serve client
             worker_thread = threading.Thread(
                 target=self.handle_request,
-                args=(client_conn, client_ip)
+                args=(client_conn, client_addr)
             )
             worker_thread.daemon = True
             worker_thread.start()
@@ -115,14 +215,28 @@ class InternalServer:
         """Wait receive new avg."""
         while True:
             # Receive input parameter from server
-            data_rcv = pickle.loads(self.upper_server.recv(1024))
-            print_msg("Received from upper server: " + str(data_rcv))
+            data_rcv = b''
+            while True:
+                try:
+                    data_rcv += self.upper_server.recv(4096)
+                    self.latency_upper = time.time() - self.startSendTime_upper
+                    data_rcv = pickle.loads(data_rcv)
+                    break
+                except pickle.UnpicklingError:
+                    pass
 
-            # Make upper server's average as its own
-            self.sum = self.avg = data_rcv
-            self.n_element = 1
+            print_msg("Received from upper server: " + str(data_rcv))
+            print_msg("Reply from ip:"+ str(self.upper_server_ip) + " port: "+ str(self.upper_server_port) +" : time="+  str(int(self.latency_upper*1000)) +" ms")
+            print_msg("------------------------------------")
+
+            with self._key_lock:
+                self.model.fc.weight.data = data_rcv['avg'].data.clone()
+                self.sum = torch.zeros(self.model.fc.weight.shape)
+                self.total_weight = 0
+                self.seqnum = data_rcv['seqnum']
 
             # Send number to all clients
+            self.startSendTime_lower = time.time()
             self.broadcast_to_clients(data_rcv)
 
     def set_up(self):
@@ -141,6 +255,7 @@ class InternalServer:
         self.socket.listen(100)
 
         print_msg("Server started.")
+        print_msg("------------------------------------")
 
     def set_up_conn_to_upper_server(self):
         """Set up connection to server."""
@@ -161,11 +276,22 @@ class InternalServer:
         server_thread.daemon = True
         server_thread.start()
 
-        self.wait_for_upper_server()
+        client_thread = threading.Thread(
+            target=self.wait_for_upper_server
+        )
+        client_thread.daemon = True
+        client_thread.start()
+
+        self.send_to_upper_server_on_schedule()
 
     def shut_down(self):
         """Properly shut down server."""
         print_msg("Shutting down server.")
+
+        data_to_send = pickle.dumps('close')
+        self.socket.sendall(data_to_send)
+
+        self.socket.shutdown(socket.SHUT_RDWR)
         self.socket.close()
 
 
