@@ -4,7 +4,6 @@ import threading
 import pickle
 import torch
 import time
-import argparse
 from utils import print_msg
 from DDP.model.model import NeuralNet
 
@@ -30,8 +29,10 @@ class InternalServer:
         self.set_up()
 
         #statistic
-        self.startSendTime = time.time()
-        self.latency = 0
+        self.startSendTime_upper = time.time()
+        self.latency_upper = 0
+        self.startSendTime_lower = time.time()
+        self.latency_lower = 0
 
     def __del__(self):
         self.shut_down()
@@ -45,6 +46,7 @@ class InternalServer:
                     try:
                         data_rcv += client_conn.recv(4096)
                         data_rcv = pickle.loads(data_rcv)
+                        self.latency_lower = time.time() - self.startSendTime_lower
                         break
                     except pickle.UnpicklingError:
                         pass
@@ -76,6 +78,7 @@ class InternalServer:
                                   + str(len(self.clients_responded)))
                         print_msg("Current total weight: "
                                   + str(self.total_weight))
+                        print_msg("Current time: " + str(int(self.latency_lower*1000)) + " ms")
                         print_msg("------------------------------------")
                 else:
                     self.remove_client(client_addr)
@@ -127,7 +130,7 @@ class InternalServer:
     def send_to_upper_server(self, data):
         """Send pickled data to upper server."""
         print_msg("Sent data: " + str(data))
-        self.startSendTime = time.time()
+        self.startSendTime_upper = time.time()
         self.upper_server.sendall(pickle.dumps(data))
         print_msg("------------------------------------")
 
@@ -215,14 +218,14 @@ class InternalServer:
             while True:
                 try:
                     data_rcv += self.upper_server.recv(4096)
-                    self.latency = time.time() - self.startSendTime
+                    self.latency_upper = time.time() - self.startSendTime_upper
                     data_rcv = pickle.loads(data_rcv)
                     break
                 except pickle.UnpicklingError:
                     pass
 
             print_msg("Received from upper server: " + str(data_rcv))
-            print_msg("Reply from ip:"+ str(self.upper_server_ip) + " port: "+ str(self.upper_server_port) +" : time="+  str(int(self.latency*1000)) +" ms")
+            print_msg("Reply from ip:"+ str(self.upper_server_ip) + " port: "+ str(self.upper_server_port) +" : time="+  str(int(self.latency_upper*1000)) +" ms")
             print_msg("------------------------------------")
 
             with self._key_lock:
@@ -232,6 +235,7 @@ class InternalServer:
                 self.seqnum = data_rcv['seqnum']
 
             # Send number to all clients
+            self.startSendTime_lower = time.time()
             self.broadcast_to_clients(data_rcv)
 
     def set_up(self):
@@ -292,36 +296,32 @@ class InternalServer:
 
 def main():
     # This is extended to allow flexible port number option
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--server_port', default=30000, type=int, metavar='N')
-    parser.add_argument('--port', default=40000, type=int, metavar='N')
-    args = parser.parse_args()
     supposed_sys_argv = {
         'internal_server.py': None,
-        'upper_server_ip': 'localhost',
-        'upper_server_port': args.server_port,
-        'port': args.port
+        '<upper_server_ip>': 'localhost',
+        '<upper_server_port>': 4000,
+        '<port>': 4001
     }
 
-    # try:
-    #     # Parsing command line arguments
-    #     _, upper_server_ip, upper_server_port, port = sys.argv
-    #     upper_server_port = int(upper_server_port)
-    #     port = int(port)
-    # except ValueError:
-    #     if len(sys.argv) > len(supposed_sys_argv):
-    #         # Falling back to default values not possible
-    #         # Print out usage syntax
-    #         help_text = "[Usage: " + " ".join(supposed_sys_argv) + "\n"
-    #         print(help_text)
-    #         return
+    try:
+        # Parsing command line arguments
+        _, upper_server_ip, upper_server_port, port = sys.argv
+        upper_server_port = int(upper_server_port)
+        port = int(port)
+    except ValueError:
+        if len(sys.argv) > len(supposed_sys_argv):
+            # Falling back to default values not possible
+            # Print out usage syntax
+            help_text = "[Usage: " + " ".join(supposed_sys_argv) + "\n"
+            print(help_text)
+            return
 
-    #     # Defaulting
-    #     upper_server_ip = supposed_sys_argv['<upper_server_ip>']
-    #     upper_server_port = supposed_sys_argv['<upper_server_port>']
-    #     port = supposed_sys_argv['<port>']
+        # Defaulting
+        upper_server_ip = supposed_sys_argv['<upper_server_ip>']
+        upper_server_port = supposed_sys_argv['<upper_server_port>']
+        port = supposed_sys_argv['<port>']
 
-    server = InternalServer(supposed_sys_argv.get('upper_server_ip'),supposed_sys_argv.get('upper_server_port'), supposed_sys_argv.get('port'))
+    server = InternalServer(upper_server_ip, upper_server_port, port)
     server.run()
 
 

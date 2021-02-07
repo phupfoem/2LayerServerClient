@@ -7,7 +7,6 @@ import torch
 import time
 from random import seed
 from random import randint
-import argparse
 from utils import print_msg
 from DDP.model.model import NeuralNet
 
@@ -30,6 +29,10 @@ class Server:
 
         self.set_up()
 
+        self.startSendTime = time.time()
+        self.latency = 0
+
+
     def __del__(self):
         self.shut_down()
 
@@ -42,6 +45,7 @@ class Server:
                     try:
                         data_rcv += client_conn.recv(4096)
                         data_rcv = pickle.loads(data_rcv)
+                        self.latency = time.time() - self.startSendTime
                         break
                     except pickle.UnpicklingError:
                         pass
@@ -74,6 +78,7 @@ class Server:
                                   + str(len(self.clients_responded)))
                         print_msg("Current total weight: "
                                   + str(self.total_weight))
+                        print_msg("Current time: " + str(int(self.latency*1000)) + " ms")
                         print_msg("------------------------------------")
                 else:
                     self.remove_client(client_addr)
@@ -189,7 +194,7 @@ class Server:
                     self.sum = torch.zeros(self.model.fc.weight.shape)
                     self.total_weight = 0
                     self.seqnum = randint(0, 0xFFFFFF)
-
+                self.startSendTime = time.time()
                 self.broadcast_to_clients({
                     'avg': self.model.fc.weight.data.clone(),
                     'seqnum': self.seqnum
@@ -228,29 +233,27 @@ class Server:
 
 def main():
     # This is extended to allow flexible port number option
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--port', default=30000, type=int, required= False, action='store')
-    args = parser.parse_args()
     supposed_sys_argv = {
         'server.py': None,
-        'port': args.port
+        '<port>': 4000
     }
 
-    # try:
-    #     # Parsing command line arguments
-    #     _, port = sys.argv
-    #     port = int(port)
-    # except ValueError:
-    #     if len(sys.argv) > len(supposed_sys_argv):
-    #         # Falling back to default values not possible
-    #         # Print out usage syntax
-    #         help_text = "[Usage: " + " ".join(supposed_sys_argv) + "\n"
-    #         print(help_text)
-    #         return
+    try:
+        # Parsing command line arguments
+        _, port = sys.argv
+        port = int(port)
+    except ValueError:
+        if len(sys.argv) > len(supposed_sys_argv):
+            # Falling back to default values not possible
+            # Print out usage syntax
+            help_text = "[Usage: " + " ".join(supposed_sys_argv) + "\n"
+            print(help_text)
+            return
 
         # Defaulting
-        # port = supposed_sys_argv['<port>']
-    server = Server(supposed_sys_argv.get('port'))
+        port = supposed_sys_argv['<port>']
+
+    server = Server(port)
     server.run()
 
 

@@ -3,7 +3,6 @@ import socket
 import pickle
 import threading
 import time
-import argparse
 import torch
 import torchvision
 
@@ -152,33 +151,30 @@ class Client:
 
 
 def main():
-    # This is extended to allow default server socket
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--server_port', default=40000, type=int, metavar='N')
-    args = parser.parse_args()
+# This is extended to allow default server socket
     supposed_sys_argv = {
         'client.py': None,
-        'server_ip': 'localhost',
-        'server_port': args.server_port
+        '<server_ip>': 'localhost',
+        '<server_port>': 4001
     }
 
-    # try:
-    #     # Parsing command line arguments
-    #     _, server_ip, server_port = sys.argv
-    #     server_port = int(server_port)
-    # except ValueError:
-    #     if len(sys.argv) > len(supposed_sys_argv):
-    #         # Falling back to default values not possible
-    #         # Print out usage syntax
-    #         help_text = "[Usage: " + " ".join(supposed_sys_argv) + "\n"
-    #         print(help_text)
-    #         return
+    try:
+        # Parsing command line arguments
+        _, server_ip, server_port = sys.argv
+        server_port = int(server_port)
+    except ValueError:
+        if len(sys.argv) > len(supposed_sys_argv):
+            # Falling back to default values not possible
+            # Print out usage syntax
+            help_text = "[Usage: " + " ".join(supposed_sys_argv) + "\n"
+            print(help_text)
+            return
 
-    #     # Defaulting
-    #     server_ip = supposed_sys_argv['<server_ip>']
-    #     server_port = supposed_sys_argv['<server_port>']
+        # Defaulting
+        server_ip = supposed_sys_argv['<server_ip>']
+        server_port = supposed_sys_argv['<server_port>']
 
-    client = Client(supposed_sys_argv.get('server_ip') ,supposed_sys_argv.get('server_port') )
+    client = Client(server_ip, server_port)
     client.run()
 
 
