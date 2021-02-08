@@ -18,10 +18,16 @@ Federated Learning (FL) is an emerging paradigm allowing training machine learni
 *First, run backend, frontend, mongodb as written in the readme files in those module folders.*
 
 Then, on the machine intended to be made into the top-level server, run:\
-**python server.py \<server_port\>**
+```
+python server.py \<server_port\>
+```
 
 Likewise, on edge devices, run:\
-**python edge_server.py *\<server_ip\> \<server_port\> \<edge_port\>***
+```
+python edge_server.py *\<server_ip\> \<server_port\> \<edge_port\>
+```
 
 Finally, clients can connect to the edge device of choice by running:\
-**python client.py *\<edge_ip\> \<edge_port\>***
+```
+python client.py *\<edge_ip\> \<edge_port\>
+```
