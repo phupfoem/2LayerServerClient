@@ -15,7 +15,7 @@ Federated Learning (FL) is an emerging paradigm allowing training machine learni
 
 ## Demo:
 *You need other settings from other modules before doing this*\
-*First, run backend, frontend, mongodb first as written in the readme files in those module folders*
+*First, run backend, frontend, mongodb as written in the readme files in those module folders.*
 
 Then, on the machine intended to be made into the top-level server, run:\
 **python server.py \<server_port\>**
