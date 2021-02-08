@@ -119,7 +119,6 @@ class Client:
                     loss.backward()
                     self.optimizer.step()
 
-                    train_loss += loss.item() / len(self.dl)
                     train_loss += loss.item() / 100
 
                 myobj = {'data': loss.item()}
