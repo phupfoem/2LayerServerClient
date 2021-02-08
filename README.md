@@ -1,14 +1,24 @@
-# Multi-layer server client system
+# Edge Networking for Federated Learning
 
-Currently works for 2-layer client-server interaction.
+This project is conducted by staff and students of Ho Chi Minh City University of Technology, Vietnam National University Ho Chi Minh City.
+Members:\
+Supervisor: Thinh Q. Dinh, Ph.D\
+Students:\
+[Phu H. T. Nguyen](https://github.com/phupfoem)\
+Federated Learning (FL) is an emerging paradigm allowing training machine learning models without centralized collecting user data and training models in cloud servers unlike conventional machine learning systems. Iteratively, local models are learned at mobile users, then aggregated at a cloud server, and continued to be updated by local data based on the aggregated model. Thus, this scheme protects user privacy and leverages the computing of local clients. However, current FL systems using server-clients models suffer a great burden of traffic and computing at the cloud server. Thus, in this project, we propose a two-tier edge network solution which can offload the traffic and computing load from the cloud node to edge nodes."
 
 ## Demo:
-*Need other settings from other modules before doing this*
+*Need other settings from other modules before doing this*\
 *Run backend, frontend, mongodb first*
 
-**python server.py**
-**python internal_server.py**
-**python client.py**
+Then, on the machine intended to be made into the top-level server, run:\
+**python server.py \<server_port\>**
+
+Likewise, on edge devices, run:\
+**python edge_server.py *\<server_ip\> \<server_port\> \<edge_port\>***
+
+Finally, clients can connect to the edge device of choice by running:\
+**python client.py *\<edge_ip\> \<edge_port\>***
 
 ## Changelog:
 **Update client, edge**
