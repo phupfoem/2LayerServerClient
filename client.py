@@ -16,6 +16,7 @@ from DDP.model.model import NeuralNet
 # # # ---------------------------------------------
 # url = "http://localhost:9000/log/create"
 
+
 class Client:
     def __init__(
         self,
@@ -48,7 +49,7 @@ class Client:
 
         self.set_up()
 
-        #statistic
+        # Statistics
         self.startSendTime = time.time()
         self.latency = 0
 
@@ -70,7 +71,13 @@ class Client:
                     pass
 
             print_msg("Received from server: " + str(data_rcv))
-            print_msg("Reply from ip:"+ str(self.server_ip) + " port: "+ str(self.server_port) +" : time="+  str(int(self.latency*1000)) +" ms")
+            print_msg("Reply from ip:"
+                      + str(self.server_ip)
+                      + " port: "
+                      + str(self.server_port)
+                      + " : time="
+                      + str(int(self.latency*1000))
+                      + " ms")
             print_msg("------------------------------------")
 
             with self._key_lock:
@@ -113,7 +120,6 @@ class Client:
                     self.optimizer.step()
 
                     train_loss += loss.item() / len(self.dl)
-                    #train_loss += loss.item() / len(self.dl)
                     train_loss += loss.item() / 100
 
                 myobj = {'data': loss.item()}
@@ -122,7 +128,7 @@ class Client:
             print_msg("Current loss value: " + str(train_loss))
             print_msg("Training time: " + '{:.2f}'.format(timeTrain) + ' s')
             print_msg("------------------------------------")
-    
+
             # Send avg to server
             self.send_to_server({
                 'value': self.model.fc.weight.data.clone(),
@@ -165,7 +171,7 @@ class Client:
 
 
 def main():
-# This is extended to allow default server socket
+    # This is extended to allow default server socket
     supposed_sys_argv = {
         'client.py': None,
         '<server_ip>': 'localhost',

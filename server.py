@@ -1,9 +1,7 @@
-from pickle import STRING
 import sys
 import socket
 import threading
 import pickle
-import torch
 import time
 from random import seed
 from random import randint
@@ -48,7 +46,6 @@ class Server:
 
         self.startSendTime = time.time()
         self.latency = 0
-
 
     def __del__(self):
         self.shut_down()
@@ -95,12 +92,10 @@ class Server:
                                   + str(len(self.clients_responded)))
                         print_msg("Current total weight: "
                                   + str(self.total_weight))
-                        print_msg("Current time: " + str(int(self.latency*1000)) + " ms")
+                        print_msg("Current time: "
+                                  + str(int(self.latency*1000)) + " ms")
                         print_msg("------------------------------------")
                         print_msg("------------------------------------")
-
-
-
                 else:
                     self.remove_client(client_addr)
                     return

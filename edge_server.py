@@ -29,7 +29,7 @@ class InternalServer:
 
         self.set_up()
 
-        #statistic
+        # Statistics
         self.startSendTime_upper = time.time()
         self.latency_upper = 0
         self.startSendTime_lower = time.time()
@@ -47,10 +47,11 @@ class InternalServer:
                     try:
                         data_rcv += client_conn.recv(4096)
                         data_rcv = pickle.loads(data_rcv)
-                        self.latency_lower = time.time() - self.startSendTime_lower
                         break
                     except pickle.UnpicklingError:
                         pass
+
+                self.latency_lower = time.time() - self.startSendTime_lower
 
                 print_msg("Received from " + client_addr + " " + str(data_rcv))
 
@@ -79,7 +80,8 @@ class InternalServer:
                                   + str(len(self.clients_responded)))
                         print_msg("Current total weight: "
                                   + str(self.total_weight))
-                        print_msg("Current time: " + str(int(self.latency_lower*1000)) + " ms")
+                        print_msg("Current time: "
+                                  + str(int(self.latency_lower*1000)) + " ms")
                         print_msg("------------------------------------")
                 else:
                     self.remove_client(client_addr)
@@ -226,7 +228,12 @@ class InternalServer:
                     pass
 
             print_msg("Received from upper server: " + str(data_rcv))
-            print_msg("Reply from ip:"+ str(self.upper_server_ip) + " port: "+ str(self.upper_server_port) +" : time="+  str(int(self.latency_upper*1000)) +" ms")
+            print_msg("Reply from ip:"
+                      + str(self.upper_server_ip)
+                      + " port: "
+                      + str(self.upper_server_port)
+                      + " : time=" + str(int(self.latency_upper*1000))
+                      + " ms")
             print_msg("------------------------------------")
 
             with self._key_lock:
