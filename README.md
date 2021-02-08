@@ -5,7 +5,7 @@ This project is conducted by staff and students of Ho Chi Minh City University o
 Members:
 * Supervisor: Thinh Q. Dinh, Ph.D
 * Students:\
-[Phu H. T. Nguyen](https://github.com/phupfoem)\
+[Phu H. T. Nguyen](https://www.linkedin.com/in/ph%C3%BA-nguy%E1%BB%85n-86a980200/)\
 [Tung K. Tran](https://github.com/KhanhTungTran)\
 [Viet H. Tran](https://github.com/HoangViet144)\
 [Phat T. Hoang](https://github.com/hoangphatmonter)\
