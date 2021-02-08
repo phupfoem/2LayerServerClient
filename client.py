@@ -122,7 +122,7 @@ class Client:
                     train_loss += loss.item() / 100
 
                 myobj = {'data': loss.item()}
-                # x = requests.post(url, data=myobj)
+                x = requests.post(url, data=myobj)
 
             print_msg("Current loss value: " + str(train_loss))
             print_msg("Training time: " + '{:.2f}'.format(timeTrain) + ' s')
