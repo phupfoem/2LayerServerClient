@@ -1,10 +1,12 @@
 # Edge Networking for Federated Learning
 
 This project is conducted by staff and students of Ho Chi Minh City University of Technology, Vietnam National University Ho Chi Minh City.
+
 Members:\
 Supervisor: Thinh Q. Dinh, Ph.D\
 Students:\
-[Phu H. T. Nguyen](https://github.com/phupfoem)\
+[Phu H. T. Nguyen](https://github.com/phupfoem)
+
 Federated Learning (FL) is an emerging paradigm allowing training machine learning models without centralized collecting user data and training models in cloud servers unlike conventional machine learning systems. Iteratively, local models are learned at mobile users, then aggregated at a cloud server, and continued to be updated by local data based on the aggregated model. Thus, this scheme protects user privacy and leverages the computing of local clients. However, current FL systems using server-clients models suffer a great burden of traffic and computing at the cloud server. Thus, in this project, we propose a two-tier edge network solution which can offload the traffic and computing load from the cloud node to edge nodes."
 
 ## Demo:
