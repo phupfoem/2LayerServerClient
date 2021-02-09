@@ -9,7 +9,7 @@ from utils import print_msg
 from DDP.model.model import NeuralNet
 
 
-class InternalServer:
+class EdgeServer:
     def __init__(self, upper_server_ip, upper_server_port, port):
         self.upper_server_ip = upper_server_ip
         self.upper_server_port = upper_server_port
@@ -305,7 +305,7 @@ class InternalServer:
 def main():
     # This is extended to allow flexible port number option
     supposed_sys_argv = {
-        'internal_server.py': None,
+        'edge_server.py': None,
         '<upper_server_ip>': 'localhost',
         '<upper_server_port>': 4000,
         '<port>': 4001
@@ -329,7 +329,7 @@ def main():
         upper_server_port = supposed_sys_argv['<upper_server_port>']
         port = supposed_sys_argv['<port>']
 
-    server = InternalServer(upper_server_ip, upper_server_port, port)
+    server = EdgeServer(upper_server_ip, upper_server_port, port)
     server.run()
 
 
