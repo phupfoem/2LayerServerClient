@@ -3,7 +3,7 @@
 This project is conducted by staff and students of Ho Chi Minh City University of Technology, Vietnam National University Ho Chi Minh City.
 
 Members:
-* Supervisor: Thinh Q. Dinh, Ph.D
+* Supervisor: [Thinh Q. Dinh, Ph.D](https://sites.google.com/site/thinhqdinh/home)
 * Students:\
 [Phu H. T. Nguyen](https://www.linkedin.com/in/ph%C3%BA-nguy%E1%BB%85n-86a980200/)\
 [Tung K. Tran](https://github.com/KhanhTungTran)\
